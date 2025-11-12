@@ -1,24 +1,42 @@
 import type { Metadata } from "next";
 
+import { prisma } from "@/lib/prisma";
+
+import { HistoryList } from "@/components/history/history-list";
+
 export const metadata: Metadata = {
   title: "Transcription History | Kai Voice Keyboard",
 };
 
-export default function HistoryPage() {
+export default async function HistoryPage() {
+  const transcriptions = await prisma.transcription.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 30,
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      status: true,
+      createdAt: true,
+      completedAt: true,
+      durationMs: true,
+      updatedAt: true,
+    },
+  });
+
   return (
-    <div className="space-y-6">
-      <header>
+    <div className="space-y-8">
+      <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">
-          Transcription History
+          Transcription history
         </h1>
         <p className="text-muted-foreground">
-          Review, copy, and continue past sessions in seconds.
+          Quickly review past dictations, grab polished snippets, and continue
+          where you left off.
         </p>
       </header>
-      <div className="rounded-xl border border-dashed border-border/70 bg-card/50 p-12 text-center text-muted-foreground">
-        History table wiring soon — we’ll populate your latest transcriptions
-        here with instant copy actions.
-      </div>
+
+      <HistoryList items={transcriptions} />
     </div>
   );
 }

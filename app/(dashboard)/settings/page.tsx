@@ -28,7 +28,6 @@ export default async function SettingsPage() {
       removeFillerWords: false,
       enableAgentSuggestions: true,
       maxSegmentDurationMs: 7000,
-      geminiModel: serverEnv.GEMINI_MODEL_DEFAULT,
     },
   });
 
@@ -37,7 +36,7 @@ export default async function SettingsPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">
-          Tune transcription defaults, Gemini models, and workflow automation to
+          Tune transcription defaults and workflow automation to
           match your writing cadence.
         </p>
       </header>

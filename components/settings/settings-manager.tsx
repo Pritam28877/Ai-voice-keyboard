@@ -41,7 +41,6 @@ export function SettingsManager({ initialSettings }: SettingsManagerProps) {
       removeFillerWords: initialSettings.removeFillerWords ?? false,
       enableAgentSuggestions: initialSettings.enableAgentSuggestions ?? true,
       maxSegmentDurationMs: initialSettings.maxSegmentDurationMs ?? 7000,
-      geminiModel: initialSettings.geminiModel ?? "",
     },
   });
 
@@ -73,7 +72,6 @@ export function SettingsManager({ initialSettings }: SettingsManagerProps) {
     setValue("removeFillerWords", false, { shouldDirty: true });
     setValue("enableAgentSuggestions", true, { shouldDirty: true });
     setValue("maxSegmentDurationMs", 7000, { shouldDirty: true });
-    setValue("geminiModel", "", { shouldDirty: true });
   };
 
   return (
@@ -81,7 +79,7 @@ export function SettingsManager({ initialSettings }: SettingsManagerProps) {
       <CardHeader className="space-y-2">
         <CardTitle>Realtime transcription preferences</CardTitle>
         <CardDescription>
-          These defaults feed the live Gemini session for every dictation. Tweak
+          These defaults feed the Whisper transcription for every dictation. Tweak
           them to match your workflows.
         </CardDescription>
       </CardHeader>
@@ -94,15 +92,6 @@ export function SettingsManager({ initialSettings }: SettingsManagerProps) {
                 id="defaultLanguage"
                 placeholder="en-US"
                 {...register("defaultLanguage")}
-                disabled={isPending}
-              />
-            </fieldset>
-            <fieldset className="space-y-2">
-              <Label htmlFor="geminiModel">Gemini model override</Label>
-              <Input
-                id="geminiModel"
-                placeholder="gemini-2.0-flash-live-preview-04-09"
-                {...register("geminiModel")}
                 disabled={isPending}
               />
             </fieldset>

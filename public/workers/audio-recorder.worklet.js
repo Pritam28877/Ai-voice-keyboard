@@ -4,6 +4,7 @@ class AudioRecorderWorklet extends AudioWorkletProcessor {
     this.bufferSize = 4096;
     this.buffer = new Int16Array(this.bufferSize);
     this.writeIndex = 0;
+    this.gainMultiplier = 1.5; // Additional gain boost in worklet
     this.port.onmessage = (event) => {
       if (event.data?.type === "flush") {
         this.flush();
@@ -24,7 +25,9 @@ class AudioRecorderWorklet extends AudioWorkletProcessor {
     let sum = 0;
 
     for (let i = 0; i < channel.length; i++) {
-      const sample = Math.max(-1, Math.min(1, channel[i]));
+      // Apply additional gain multiplier for increased sensitivity
+      const boosted = channel[i] * this.gainMultiplier;
+      const sample = Math.max(-1, Math.min(1, boosted));
       const int16 = sample * 32768;
       this.buffer[this.writeIndex++] = int16;
       sum += sample * sample;

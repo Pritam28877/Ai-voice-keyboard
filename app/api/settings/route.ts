@@ -56,10 +56,6 @@ export async function PATCH(request: NextRequest) {
           typeof json?.maxSegmentDurationMs === "number"
             ? Math.max(1000, Math.min(20000, Math.floor(json.maxSegmentDurationMs)))
             : undefined,
-        geminiModel:
-          typeof json?.geminiModel === "string" && json.geminiModel.trim()
-            ? json.geminiModel.trim()
-            : undefined,
         extraConfig:
           typeof json?.extraConfig === "object" ? json.extraConfig : undefined,
       },
@@ -87,10 +83,6 @@ export async function PATCH(request: NextRequest) {
           typeof json?.maxSegmentDurationMs === "number"
             ? Math.max(1000, Math.min(20000, Math.floor(json.maxSegmentDurationMs)))
             : 7000,
-        geminiModel:
-          typeof json?.geminiModel === "string" && json.geminiModel.trim()
-            ? json.geminiModel.trim()
-            : undefined,
         extraConfig:
           typeof json?.extraConfig === "object" ? json.extraConfig : undefined,
       },

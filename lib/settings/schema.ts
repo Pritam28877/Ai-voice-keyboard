@@ -7,7 +7,6 @@ export const settingsSchema = z.object({
   removeFillerWords: z.boolean(),
   enableAgentSuggestions: z.boolean(),
   maxSegmentDurationMs: z.number().int().min(1000).max(20000),
-  geminiModel: z.string().optional(),
 });
 
 export type SettingsInput = z.infer<typeof settingsSchema>;

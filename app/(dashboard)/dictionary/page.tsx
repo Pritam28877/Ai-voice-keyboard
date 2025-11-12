@@ -29,7 +29,7 @@ export default async function DictionaryPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Dictionary</h1>
         <p className="text-muted-foreground">
-          Teach Gemini your brand names, abbreviations, and stylistic quirks so
+          Teach Whisper your brand names, abbreviations, and stylistic quirks so
           every transcript is spell-checked by context.
         </p>
       </header>

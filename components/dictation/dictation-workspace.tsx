@@ -37,18 +37,23 @@ export function DictationWorkspace() {
   const recorderRef = useRef<AudioRecorder | null>(null);
   const chunkQueue = useRef<Promise<void>>(Promise.resolve());
   const pollAbortController = useRef<AbortController | null>(null);
+  const isStoppingRef = useRef(false);
 
   const stopRecording = useCallback(
     async (skipFinalize = false) => {
-      if (!transcriptionId) {
+      if (!transcriptionId || isStoppingRef.current) {
         return;
       }
 
+      isStoppingRef.current = true;
       setStatus("finishing");
 
       try {
+        // Stop the recorder first to prevent new chunks
         await recorderRef.current?.stop();
         recorderRef.current = null;
+        
+        // Wait for any pending chunk uploads to complete
         await chunkQueue.current;
 
         if (!skipFinalize) {
@@ -58,6 +63,16 @@ export function DictationWorkspace() {
           );
           if (!res.ok) {
             throw new Error("Unable to finalize transcription");
+          }
+          
+          // After finalization, fetch the final transcript
+          const transcriptRes = await fetch(`/api/transcriptions/${transcriptionId}`);
+          if (transcriptRes.ok) {
+            const data = await transcriptRes.json();
+            const content = data?.transcription?.content;
+            if (typeof content === "string" && content.trim()) {
+              setTranscript(content);
+            }
           }
         }
       } catch (error) {
@@ -69,9 +84,10 @@ export function DictationWorkspace() {
         setAudioLevel(0);
         pollAbortController.current?.abort();
         pollAbortController.current = null;
+        isStoppingRef.current = false;
       }
     },
-    [setAudioLevel, setError, setStatus, setTranscriptionId, transcriptionId],
+    [setAudioLevel, setError, setStatus, setTranscriptionId, setTranscript, transcriptionId],
   );
 
   const startRecording = useCallback(async () => {
@@ -109,9 +125,20 @@ export function DictationWorkspace() {
       const recorder = new AudioRecorder({
         onChunk: (base64, meta) => {
           setAudioLevel(meta.rms);
+          
+          // Don't upload chunks if we're in the process of stopping
+          if (isStoppingRef.current) {
+            return;
+          }
+          
           chunkQueue.current = chunkQueue.current
-            .then(() =>
-              fetch(`/api/transcriptions/${id}/chunks`, {
+            .then(async () => {
+              // Double-check we're not stopping before uploading
+              if (isStoppingRef.current) {
+                return;
+              }
+              
+              const res = await fetch(`/api/transcriptions/${id}/chunks`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -120,14 +147,20 @@ export function DictationWorkspace() {
                   data: base64,
                   durationMs: 250,
                 }),
-              }),
-            )
-            .then((res) => {
+              });
+              
+              if (isStoppingRef.current) {
+                return;
+              }
+              
               if (!res.ok) {
                 throw new Error("Failed to upload audio chunk");
               }
             })
             .catch((error) => {
+              if (isStoppingRef.current) {
+                return;
+              }
               console.error(error);
               setError("Failed to stream audio. Stopping recording.");
               void stopRecording(true);
@@ -208,19 +241,36 @@ export function DictationWorkspace() {
           throw new Error("Failed to poll transcription");
         }
         const data = await res.json();
+
         const content = data?.transcription?.content;
-        if (typeof content === "string") {
+        if (typeof content === "string" && content.trim()) {
           setTranscript(content);
         }
         const statusRemote = data?.transcription?.status;
         if (statusRemote === "COMPLETED") {
+          // Transcription completed via backend, clean up UI state but keep transcript
           toast.success("Transcription completed");
-          await stopRecording(true);
+          
+          // Stop polling
+          controller.abort();
+          pollAbortController.current = null;
+          
+          // Clean up recorder and reset state while preserving transcript
+          if (recorderRef.current) {
+            await recorderRef.current.stop();
+            recorderRef.current = null;
+          }
+          
+          setStatus("idle");
+          setTranscriptionId(null);
+          setAudioLevel(0);
+          isStoppingRef.current = false;
+          
           return;
         }
       } catch (error) {
         if (!controller.signal.aborted) {
-          console.error(error);
+          console.error("Poll error:", error);
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -304,7 +354,7 @@ export function DictationWorkspace() {
             <StatusBadge status={status} />
           </div>
           <CardDescription>
-            Speak naturally. We’ll stream audio to Gemini, apply your dictionary,
+            Speak naturally. We’ll stream audio to Whisper, apply your dictionary,
             and mirror the transcript here in seconds.
           </CardDescription>
         </CardHeader>

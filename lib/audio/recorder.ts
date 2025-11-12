@@ -17,6 +17,7 @@ export class AudioRecorder {
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
   private worklet: AudioWorkletNode | null = null;
+  private gainNode: GainNode | null = null;
   private state: RecorderState = "idle";
   private readonly handlers: RecorderHandlers;
 
@@ -34,7 +35,9 @@ export class AudioRecorder {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
-          noiseSuppression: true,
+          noiseSuppression: false, // Disable to preserve more audio detail
+          autoGainControl: true, // Enable automatic gain adjustment
+          sampleRate: 16000,
         },
       });
       this.mediaStream = stream;
@@ -52,8 +55,16 @@ export class AudioRecorder {
       });
       this.worklet = worklet;
 
+      // Create a gain node to boost the microphone volume
+      const gainNode = context.createGain();
+      gainNode.gain.value = 2.5; // Increase volume by 2.5x (adjust as needed: 1.5-3.0)
+      this.gainNode = gainNode;
+
       const source = context.createMediaStreamSource(stream);
-      source.connect(worklet);
+      
+      // Connect: source -> gain -> worklet (amplifies the signal)
+      source.connect(gainNode);
+      gainNode.connect(worklet);
 
       worklet.port.onmessage = (event) => {
         const { type, payload } = event.data ?? {};
@@ -89,6 +100,13 @@ export class AudioRecorder {
       this.worklet?.port.postMessage({ type: "flush" });
       this.worklet?.disconnect();
       this.worklet = null;
+    } catch {
+      // ignore
+    }
+
+    try {
+      this.gainNode?.disconnect();
+      this.gainNode = null;
     } catch {
       // ignore
     }

@@ -12,12 +12,15 @@ export async function POST(_request: NextRequest, context: RouteContext) {
   try {
     const user = await requireUser();
     const { id } = await context.params;
+    console.log(`Complete called for transcription ${id}`);
     await finalizeTranscription({
       transcriptionId: id,
       userId: user.id,
     });
+    console.log(`Complete finished for transcription ${id}`);
     return jsonResponse({ ok: true });
   } catch (error) {
+    console.error("Complete API error:", error);
     return handleApiError(error);
   }
 }

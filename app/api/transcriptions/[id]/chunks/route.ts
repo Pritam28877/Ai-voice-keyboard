@@ -20,6 +20,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       throw new BadRequestError("Missing audio data");
     }
 
+    console.log(`Received chunk for transcription ${id}: ${data.length} chars, isLast=${body?.isLast}`);
+
     await ingestAudioChunk({
       transcriptionId: id,
       userId: user.id,
@@ -31,6 +33,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     return jsonResponse({ ok: true });
   } catch (error) {
+    console.error("Chunks API error:", error);
     return handleApiError(error);
   }
 }

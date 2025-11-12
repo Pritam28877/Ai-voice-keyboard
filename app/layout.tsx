@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Kai Voice Keyboard",
-  description: "Fast Gemini-powered AI voice dictation with contextual polish.",
+  description: "Fast Whisper-powered AI voice dictation with contextual polish.",
 };
 
 export default function RootLayout({

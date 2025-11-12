@@ -59,6 +59,7 @@ export function HistoryList({ items }: Props) {
 
 function HistoryCard({ item }: { item: HistoryItem }) {
   const [copied, setCopied] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleCopy = async () => {
     if (!item.content) {
@@ -103,24 +104,30 @@ function HistoryCard({ item }: { item: HistoryItem }) {
         <Badge variant={statusVariant(item.status)}>{item.status}</Badge>
       </CardHeader>
       <CardContent className="space-y-4">
-        <ScrollArea className="max-h-48 rounded-md border border-border/60 bg-background/50 p-4">
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">
-            {item.content ?? "Gemini is still processing this transcript."}
-          </p>
-        </ScrollArea>
-        <Button variant="outline" className="w-full" onClick={handleCopy}>
-          {copied ? (
-            <>
-              <ClipboardCheck className="mr-2 h-4 w-4" />
-              Copied
-            </>
-          ) : (
-            <>
-              <Clipboard className="mr-2 h-4 w-4" />
-              Copy transcript
-            </>
+        <div className="relative">
+          <ScrollArea
+            className="max-h-48 rounded-md border border-border/60 bg-background/50 p-4"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <p className="whitespace-pre-wrap text-sm leading-relaxed">
+              {item.content ?? "Whisper is still processing this transcript."}
+            </p>
+          </ScrollArea>
+          {isHovered && (
+            <div
+              className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm rounded-md p-2 cursor-pointer hover:bg-background transition-colors border border-border/60"
+              onClick={handleCopy}
+              title="Copy transcript"
+            >
+              {copied ? (
+                <ClipboardCheck className="h-4 w-4 text-green-600" />
+              ) : (
+                <Clipboard className="h-4 w-4" />
+              )}
+            </div>
           )}
-        </Button>
+        </div>
       </CardContent>
     </Card>
   );

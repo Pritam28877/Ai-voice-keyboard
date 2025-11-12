@@ -1,0 +1,23 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Settings | Kai Voice Keyboard",
+};
+
+export default function SettingsPage() {
+  return (
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground">
+          Control dictation defaults, Gemini preferences, and agent behavior.
+        </p>
+      </header>
+      <div className="rounded-xl border border-dashed border-border/70 bg-card/50 p-12 text-center text-muted-foreground">
+        Settings controls on the way — language, prompt tuning, and latency
+        thresholds will live here.
+      </div>
+    </div>
+  );
+}
+

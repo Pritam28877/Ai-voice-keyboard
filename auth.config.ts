@@ -57,6 +57,7 @@ export const authConfig = {
         session.user.id = user.id;
         session.user.email = user.email;
         session.user.name = user.name;
+        session.user.image = user.image ?? undefined;
       }
       return session;
     },

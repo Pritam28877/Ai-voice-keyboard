@@ -1,22 +1,32 @@
 import type { Metadata } from "next";
 
+import { prisma } from "@/lib/prisma";
+
+import { DictionaryManager } from "@/components/dictionary/dictionary-manager";
+
 export const metadata: Metadata = {
   title: "Dictionary | Kai Voice Keyboard",
 };
 
-export default function DictionaryPage() {
+export default async function DictionaryPage() {
+  const entries = await prisma.dictionaryEntry.findMany({
+    orderBy: [
+      { priority: "desc" },
+      { createdAt: "desc" },
+    ],
+  });
+
   return (
-    <div className="space-y-6">
-      <header>
+    <div className="space-y-8">
+      <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Dictionary</h1>
         <p className="text-muted-foreground">
-          Define domain-specific vocabulary so Gemini nails every pronunciation.
+          Teach Gemini your brand names, abbreviations, and stylistic quirks so
+          every transcript is spell-checked by context.
         </p>
       </header>
-      <div className="rounded-xl border border-dashed border-border/70 bg-card/50 p-12 text-center text-muted-foreground">
-        Dictionary editor incoming — add, update, and prioritize custom terms
-        soon.
-      </div>
+
+      <DictionaryManager initialEntries={entries} />
     </div>
   );
 }

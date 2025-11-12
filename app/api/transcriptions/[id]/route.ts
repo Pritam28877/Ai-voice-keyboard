@@ -4,15 +4,16 @@ import { requireUser } from "@/lib/auth/session";
 import { jsonResponse, handleApiError } from "@/lib/api/response";
 import { prisma } from "@/lib/prisma";
 
-type Params = {
-  params: { id: string };
+type RouteContext = {
+  params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const user = await requireUser();
+    const { id } = await context.params;
     const transcription = await prisma.transcription.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: { id, userId: user.id },
       include: {
         chunks: {
           orderBy: { sequence: "asc" },
@@ -21,7 +22,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
             sequence: true,
             text: true,
             isFinal: true,
-            createdAt: true,
+            startedAt: true,
             completedAt: true,
           },
         },

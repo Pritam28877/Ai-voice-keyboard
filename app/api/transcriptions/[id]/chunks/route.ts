@@ -5,13 +5,14 @@ import { jsonResponse, handleApiError } from "@/lib/api/response";
 import { BadRequestError } from "@/lib/errors";
 import { ingestAudioChunk } from "@/lib/transcription/live-manager";
 
-type Params = {
-  params: { id: string };
+type RouteContext = {
+  params: Promise<{ id: string }>;
 };
 
-export async function POST(request: NextRequest, { params }: Params) {
+export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const user = await requireUser();
+    const { id } = await context.params;
     const body = await request.json();
     const data = body?.data;
 
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     await ingestAudioChunk({
-      transcriptionId: params.id,
+      transcriptionId: id,
       userId: user.id,
       base64Audio: data,
       durationMs:

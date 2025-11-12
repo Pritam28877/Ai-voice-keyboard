@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 import { DictionaryManager } from "@/components/dictionary/dictionary-manager";
@@ -9,7 +10,14 @@ export const metadata: Metadata = {
 };
 
 export default async function DictionaryPage() {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return null;
+  }
+
   const entries = await prisma.dictionaryEntry.findMany({
+    where: { userId },
     orderBy: [
       { priority: "desc" },
       { createdAt: "desc" },

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { auth } from "@/auth";
+import { serverEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
 import { SettingsManager } from "@/components/settings/settings-manager";
@@ -16,8 +17,19 @@ export default async function SettingsPage() {
     return null;
   }
 
-  const settings = await prisma.userSetting.findUnique({
+  const settings = await prisma.userSetting.upsert({
     where: { userId },
+    update: {},
+    create: {
+      userId,
+      defaultLanguage: "en-US",
+      autoPunctuation: true,
+      smartFormatting: true,
+      removeFillerWords: false,
+      enableAgentSuggestions: true,
+      maxSegmentDurationMs: 7000,
+      geminiModel: serverEnv.GEMINI_MODEL_DEFAULT,
+    },
   });
 
   return (
@@ -30,24 +42,7 @@ export default async function SettingsPage() {
         </p>
       </header>
 
-      <SettingsManager
-        initialSettings={
-          settings ?? {
-            userId,
-            defaultLanguage: "en-US",
-            autoPunctuation: true,
-            smartFormatting: true,
-            removeFillerWords: false,
-            enableAgentSuggestions: true,
-            maxSegmentDurationMs: 7000,
-            geminiModel: undefined,
-            extraConfig: null,
-            id: "",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }
-        }
-      />
+      <SettingsManager initialSettings={settings} />
     </div>
   );
 }

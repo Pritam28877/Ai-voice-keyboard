@@ -4,42 +4,40 @@ import { requireUser } from "@/lib/auth/session";
 import { jsonResponse, handleApiError } from "@/lib/api/response";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import {
-  dictionaryEntrySchema,
-  type DictionaryEntryInput,
-} from "@/lib/dictionary/schema";
+import { dictionaryEntrySchema } from "@/lib/dictionary/schema";
 
-type Params = {
-  params: { id: string };
+type RouteContext = {
+  params: Promise<{ id: string }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: Params) {
+const updateSchema = dictionaryEntrySchema.partial();
+
+export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const user = await requireUser();
+    const { id } = await context.params;
     const existing = await prisma.dictionaryEntry.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: { id, userId: user.id },
     });
     if (!existing) {
       throw new NotFoundError("Dictionary entry not found");
     }
 
     const json = await request.json();
-    const parsed = dictionaryEntrySchema
-      .extend({ phrase: dictionaryEntrySchema.shape.phrase.optional() })
-      .safeParse({
-        ...json,
-        priority:
-          typeof json?.priority === "number"
-            ? json.priority
-            : parseInt(json?.priority ?? `${existing.priority}`, 10) ||
-              existing.priority,
-      });
+    const parsed = updateSchema.safeParse({
+      ...json,
+      priority:
+        typeof json?.priority === "number"
+          ? json.priority
+          : parseInt(json?.priority ?? `${existing.priority}`, 10) ||
+            existing.priority,
+    });
 
     if (!parsed.success) {
       throw new BadRequestError(parsed.error.errors[0]?.message ?? "Invalid data");
     }
 
-    const payload: DictionaryEntryInput = parsed.data;
+    const payload = parsed.data;
 
     const entry = await prisma.dictionaryEntry.update({
       where: { id: existing.id },
@@ -62,11 +60,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
     const user = await requireUser();
+    const { id } = await context.params;
     const existing = await prisma.dictionaryEntry.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: { id, userId: user.id },
       select: { id: true },
     });
     if (!existing) {

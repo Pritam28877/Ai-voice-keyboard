@@ -45,7 +45,19 @@ type DictionaryManagerProps = {
 };
 
 export function DictionaryManager({ initialEntries }: DictionaryManagerProps) {
-  const [entries, setEntries] = useState(initialEntries);
+  const [entries, setEntries] = useState(
+    initialEntries.map((entry) => ({
+      ...entry,
+      createdAt:
+        entry.createdAt instanceof Date
+          ? entry.createdAt
+          : new Date(entry.createdAt),
+      updatedAt:
+        entry.updatedAt instanceof Date
+          ? entry.updatedAt
+          : new Date(entry.updatedAt),
+    })),
+  );
   const [isPending, startTransition] = useTransition();
 
   const prioritySortedEntries = useMemo(

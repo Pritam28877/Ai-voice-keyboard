@@ -1,5 +1,4 @@
 import { GoogleGenAI, LiveServerMessage, Modality, Session } from "@google/genai";
-import type { LiveConnectConfig } from "@google/genai/dist/genai";
 import type { TranscriptionStatus } from "@prisma/client";
 
 import { serverEnv } from "@/lib/env";
@@ -63,6 +62,8 @@ export async function startLiveTranscription({
       title,
       status: STATUS_STREAMING,
       language,
+      content: "",
+      normalizedContent: "",
       dictionarySnapshot: dictionary.map((entry) => ({
         id: entry.id,
         phrase: entry.phrase,
@@ -71,12 +72,16 @@ export async function startLiveTranscription({
         notes: entry.notes,
         priority: entry.priority,
       })),
-      promptContext,
+      promptContext: promptContext
+        ? {
+            context: promptContext,
+          }
+        : undefined,
       segmentCount: 0,
     },
   });
 
-  const config: LiveConnectConfig = {
+  const config = {
     responseModalities: [Modality.TEXT],
     realtimeInputConfig: {
       automaticActivityDetection: {},
@@ -189,13 +194,6 @@ export async function finalizeTranscription({
   }
 
   ctx.finalized = true;
-  ctx.session.sendRealtimeInput({
-    audio: {
-      data: "",
-      mimeType: "audio/pcm;rate=16000",
-      audioStreamEnd: true,
-    },
-  });
   ctx.session.close();
 
   ctx.queue = ctx.queue.then(async () => {

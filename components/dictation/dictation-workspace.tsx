@@ -38,6 +38,42 @@ export function DictationWorkspace() {
   const chunkQueue = useRef<Promise<void>>(Promise.resolve());
   const pollAbortController = useRef<AbortController | null>(null);
 
+  const stopRecording = useCallback(
+    async (skipFinalize = false) => {
+      if (!transcriptionId) {
+        return;
+      }
+
+      setStatus("finishing");
+
+      try {
+        await recorderRef.current?.stop();
+        recorderRef.current = null;
+        await chunkQueue.current;
+
+        if (!skipFinalize) {
+          const res = await fetch(
+            `/api/transcriptions/${transcriptionId}/complete`,
+            { method: "POST" },
+          );
+          if (!res.ok) {
+            throw new Error("Unable to finalize transcription");
+          }
+        }
+      } catch (error) {
+        console.error(error);
+        setError("Failed to stop recording cleanly.");
+      } finally {
+        setStatus("idle");
+        setTranscriptionId(null);
+        setAudioLevel(0);
+        pollAbortController.current?.abort();
+        pollAbortController.current = null;
+      }
+    },
+    [setAudioLevel, setError, setStatus, setTranscriptionId, transcriptionId],
+  );
+
   const startRecording = useCallback(async () => {
     if (status !== "idle") {
       return;
@@ -127,43 +163,8 @@ export function DictationWorkspace() {
     setTranscriptionId,
     setTranscript,
     status,
+    stopRecording,
   ]);
-
-  const stopRecording = useCallback(
-    async (skipFinalize = false) => {
-      if (!transcriptionId) {
-        return;
-      }
-
-      setStatus("finishing");
-
-      try {
-        await recorderRef.current?.stop();
-        recorderRef.current = null;
-        await chunkQueue.current;
-
-        if (!skipFinalize) {
-          const res = await fetch(
-            `/api/transcriptions/${transcriptionId}/complete`,
-            { method: "POST" },
-          );
-          if (!res.ok) {
-            throw new Error("Unable to finalize transcription");
-          }
-        }
-      } catch (error) {
-        console.error(error);
-        setError("Failed to stop recording cleanly.");
-      } finally {
-        setStatus("idle");
-        setTranscriptionId(null);
-        setAudioLevel(0);
-        pollAbortController.current?.abort();
-        pollAbortController.current = null;
-      }
-    },
-    [setAudioLevel, setError, setStatus, setTranscriptionId, transcriptionId],
-  );
 
   const cancelRecording = useCallback(async () => {
     if (!transcriptionId) {

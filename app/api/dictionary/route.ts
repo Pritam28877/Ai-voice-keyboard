@@ -9,7 +9,7 @@ import {
   type DictionaryEntryInput,
 } from "@/lib/dictionary/schema";
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const user = await requireUser();
     const entries = await prisma.dictionaryEntry.findMany({

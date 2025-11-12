@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 import { HistoryList } from "@/components/history/history-list";
@@ -9,7 +10,14 @@ export const metadata: Metadata = {
 };
 
 export default async function HistoryPage() {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return null;
+  }
+
   const transcriptions = await prisma.transcription.findMany({
+    where: { userId },
     orderBy: { createdAt: "desc" },
     take: 30,
     select: {

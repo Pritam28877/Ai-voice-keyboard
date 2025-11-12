@@ -9,7 +9,7 @@ import { verifyPassword } from "@/lib/password";
 export const authConfig = {
   adapter: PrismaAdapter(prisma),
   session: {
-    strategy: "database",
+    strategy: "jwt",
   },
   pages: {
     signIn: "/login",
@@ -52,12 +52,21 @@ export const authConfig = {
     }),
   ],
   callbacks: {
-    session: async ({ session, user }) => {
-      if (session.user && user) {
-        session.user.id = user.id;
-        session.user.email = user.email;
-        session.user.name = user.name;
-        session.user.image = user.image ?? undefined;
+    jwt: async ({ token, user }) => {
+      if (user) {
+        token.sub = user.id;
+        token.email = user.email;
+        token.name = user.name;
+        token.picture = user.image;
+      }
+      return token;
+    },
+    session: async ({ session, token }) => {
+      if (session.user && token) {
+        session.user.id = token.sub ?? '';
+        session.user.email = token.email ?? '';
+        session.user.name = token.name ?? undefined;
+        session.user.image = token.picture ?? undefined;
       }
       return session;
     },

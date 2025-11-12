@@ -9,12 +9,13 @@ import { buildTranscriptionInstruction } from "@/lib/transcription/prompt";
 type SessionContext = {
   transcriptionId: string;
   userId: string;
-  session: Session;
+  session: Session | null;
   queue: Promise<void>;
   finalized: boolean;
   lastPersistedText: string;
   model: string;
   sequence: number;
+  geminiConnected: boolean;
 };
 
 const ai = new GoogleGenAI({
@@ -92,33 +93,48 @@ export async function startLiveTranscription({
     },
   };
 
-  const session = await ai.live.connect({
-    model,
-    config,
-    callbacks: {
-      onmessage: (message) => handleLiveMessage(transcription.id, message),
-      onerror: (error) => {
-        console.error("Gemini live session error", error);
-        void failTranscription(transcription.id, userId, error.message);
-      },
-      onclose: () => {
-        liveSessions.delete(transcription.id);
-      },
-    },
-  });
-
   const ctx: SessionContext = {
     transcriptionId: transcription.id,
     userId,
-    session,
+    session: null,
     queue: Promise.resolve(),
     finalized: false,
     lastPersistedText: "",
     model,
     sequence: 0,
+    geminiConnected: false,
   };
 
   liveSessions.set(transcription.id, ctx);
+
+  try {
+    const session = await ai.live.connect({
+      model,
+      config,
+      callbacks: {
+        onmessage: (message) => handleLiveMessage(transcription.id, message),
+        onerror: (error) => {
+          console.error("Gemini live session error", error);
+          void failTranscription(transcription.id, userId, error.message);
+        },
+        onclose: () => {
+          const existing = liveSessions.get(transcription.id);
+          if (existing) {
+            existing.session = null;
+            existing.geminiConnected = false;
+          }
+        },
+      },
+    });
+
+    ctx.session = session;
+    ctx.geminiConnected = true;
+  } catch (error) {
+    console.error(
+      "Failed to establish Gemini live session. Falling back to offline buffering.",
+      error,
+    );
+  }
 
   return {
     transcriptionId: transcription.id,
@@ -141,6 +157,7 @@ export async function ingestAudioChunk({
   durationMs,
   isLastChunk,
 }: IngestChunkArgs) {
+  let pendingDurationMs = durationMs;
   const ctx = liveSessions.get(transcriptionId);
   if (!ctx || ctx.userId !== userId) {
     throw new NotFoundError("Active transcription session not found");
@@ -150,20 +167,52 @@ export async function ingestAudioChunk({
     throw new BadRequestError("Transcription already finalized");
   }
 
-  ctx.session.sendRealtimeInput({
-    audio: {
-      data: base64Audio,
-      mimeType: "audio/pcm;rate=16000",
-    },
-  });
+  if (ctx.session) {
+    ctx.session.sendRealtimeInput({
+      audio: {
+        data: base64Audio,
+        mimeType: "audio/pcm;rate=16000",
+      },
+    });
+  } else {
+    const chunkSequence = ++ctx.sequence;
+    ctx.queue = ctx.queue.then(async () => {
+      await prisma.$transaction([
+        prisma.transcription.update({
+          where: { id: transcriptionId },
+          data: {
+            segmentCount: chunkSequence,
+            updatedAt: new Date(),
+            durationMs: pendingDurationMs
+              ? {
+                  increment: pendingDurationMs,
+                }
+              : undefined,
+          },
+        }),
+        prisma.transcriptionChunk.create({
+          data: {
+            transcriptionId,
+            sequence: chunkSequence,
+            text: ctx.lastPersistedText,
+            normalizedText: ctx.lastPersistedText,
+            rawResponse: {
+              audio: base64Audio,
+            },
+          },
+        }),
+      ]);
+    });
+    pendingDurationMs = undefined;
+  }
 
-  if (durationMs) {
+  if (pendingDurationMs) {
     ctx.queue = ctx.queue.then(async () => {
       await prisma.transcription.update({
         where: { id: transcriptionId },
         data: {
           durationMs: {
-            increment: durationMs,
+            increment: pendingDurationMs as number,
           },
         },
       });
@@ -194,7 +243,7 @@ export async function finalizeTranscription({
   }
 
   ctx.finalized = true;
-  ctx.session.close();
+  ctx.session?.close();
 
   ctx.queue = ctx.queue.then(async () => {
     await prisma.transcription.update({
@@ -216,7 +265,7 @@ export async function cancelTranscription({
   const ctx = liveSessions.get(transcriptionId);
   if (ctx && ctx.userId === userId) {
     ctx.finalized = true;
-    ctx.session.close();
+    ctx.session?.close();
     liveSessions.delete(transcriptionId);
   }
 
@@ -282,7 +331,7 @@ async function handleLiveMessage(
 
   if (generationComplete || turnComplete || (inputFinished && text)) {
     ctx.finalized = true;
-    ctx.session.close();
+    ctx.session?.close();
     liveSessions.delete(transcriptionId);
     ctx.queue = ctx.queue.then(async () => {
       await prisma.transcription.update({
@@ -304,7 +353,7 @@ async function failTranscription(
   const ctx = liveSessions.get(transcriptionId);
   if (ctx && ctx.userId === userId) {
     ctx.finalized = true;
-    ctx.session.close();
+    ctx.session?.close();
     liveSessions.delete(transcriptionId);
   }
 

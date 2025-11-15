@@ -20,6 +20,7 @@ type SessionContext = {
   processingChunkCount: number; // Track how many chunks are being processed
   lastChunkRMS: number; // Track audio level of last chunk for pause detection
   wasSilent: boolean; // Track if we were in a silent period
+  pendingDbUpdates: Set<Promise<any>>; // Track background DB updates
 };
 
 const openai = new OpenAI({
@@ -195,6 +196,7 @@ export async function startLiveTranscription({
     processingChunkCount: 0,
     lastChunkRMS: 0,
     wasSilent: false,
+    pendingDbUpdates: new Set(),
   };
 
   liveSessions.set(transcription.id, ctx);
@@ -252,6 +254,7 @@ export async function ingestAudioChunk({
         processingChunkCount: 0,
         lastChunkRMS: 0,
         wasSilent: false,
+        pendingDbUpdates: new Set(),
       };
       liveSessions.set(transcriptionId, ctx);
       console.log(`📦 Session restored: ${transcriptionId}`);
@@ -295,13 +298,21 @@ export async function ingestAudioChunk({
   if (durationMs) {
     ctx.totalDurationMs += durationMs;
 
-    await prisma.transcription.update({
+    // BACKGROUND DB UPDATE - Don't wait, update in background
+    const dbUpdatePromise = prisma.transcription.update({
       where: { id: transcriptionId },
       data: {
         durationMs: ctx.totalDurationMs,
         updatedAt: new Date(),
       },
+    }).then(() => {
+      ctx.pendingDbUpdates.delete(dbUpdatePromise);
+    }).catch((error) => {
+      console.error(`⚠️ Background duration update failed:`, error);
+      ctx.pendingDbUpdates.delete(dbUpdatePromise);
     });
+    
+    ctx.pendingDbUpdates.add(dbUpdatePromise);
 
     // Warn if recording is approaching or exceeds maximum duration
     if (ctx.totalDurationMs >= MAX_RECORDING_DURATION_MS) {
@@ -492,17 +503,26 @@ async function processAccumulatedAudio(ctx: SessionContext): Promise<void> {
       
       console.log(`✅ Transcribed: "${newText}" (total: ${ctx.accumulatedTranscript.length} chars)`);
 
-      // Update database with current transcript
-      await prisma.transcription.update({
+      // INSTANT RESPONSE: Update in-memory immediately, DB in background
+      // Don't await - fire and forget for maximum speed
+      const dbUpdatePromise = prisma.transcription.update({
         where: { id: ctx.transcriptionId },
         data: {
           content: ctx.accumulatedTranscript,
           normalizedContent: ctx.accumulatedTranscript,
           updatedAt: new Date(),
         },
+      }).then(() => {
+        console.log(`💾 Background DB update complete: ${ctx.accumulatedTranscript.length} chars`);
+        ctx.pendingDbUpdates.delete(dbUpdatePromise);
+      }).catch((error) => {
+        console.error(`⚠️ Background DB update failed:`, error);
+        ctx.pendingDbUpdates.delete(dbUpdatePromise);
+        // Don't throw - transcription continues in memory
       });
-
-      console.log(`💾 DB updated: ${ctx.accumulatedTranscript.length} chars, ${Math.round(ctx.totalDurationMs / 1000)}s recorded)`);
+      
+      ctx.pendingDbUpdates.add(dbUpdatePromise);
+      console.log(`⚡ INSTANT: Transcript updated in memory, DB updating in background (${ctx.pendingDbUpdates.size} pending)`);
     } else {
       console.log(`⚠️ Whisper returned empty transcription`);
     }
@@ -598,6 +618,14 @@ export async function finalizeTranscription({
   }
 
   ctx.finalized = true;
+  
+  // Wait for any pending background DB updates before finalizing
+  if (ctx.pendingDbUpdates.size > 0) {
+    console.log(`⏳ Waiting for ${ctx.pendingDbUpdates.size} background DB updates to complete...`);
+    await Promise.allSettled(Array.from(ctx.pendingDbUpdates));
+    console.log(`✅ All background updates completed`);
+    ctx.pendingDbUpdates.clear();
+  }
   
   const totalAudioBytes = ctx.audioChunks.reduce((sum, chunk) => sum + chunk.length, 0);
   console.log(`📊 Finalizing with ${ctx.audioChunks.length} unprocessed chunks (${totalAudioBytes} bytes total)`);

@@ -377,8 +377,8 @@ export function DictationWorkspace() {
             <StatusBadge status={status} />
           </div>
           <CardDescription>
-            Speak naturally for up to 15 minutes. Instant resume after pauses - no lag between words. 
-            Google Translate speed with smart pause detection.
+            Speak naturally for up to 15 minutes. Real-time transcription with instant display. 
+            Results appear immediately while database updates in background.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-4">
@@ -466,8 +466,8 @@ export function DictationWorkspace() {
           <CardHeader>
             <CardTitle>Tips</CardTitle>
             <CardDescription>
-              Record for up to 15 minutes. Instant resume detection - when you start speaking after a pause, 
-              transcription resumes immediately (no lag). Google Translate speed with zero delay.
+              Record for up to 15 minutes. Real-time processing - transcription appears instantly while 
+              database saves in background. Zero lag, maximum responsiveness.
             </CardDescription>
           </CardHeader>
         </Card>

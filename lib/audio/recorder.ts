@@ -35,9 +35,10 @@ export class AudioRecorder {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
-          noiseSuppression: false, // Disable to preserve more audio detail
-          autoGainControl: true, // Enable automatic gain adjustment
+          noiseSuppression: true, // Enable noise suppression for cleaner audio
+          autoGainControl: true,
           sampleRate: 16000,
+          channelCount: 1,
         },
       });
       this.mediaStream = stream;
@@ -55,9 +56,9 @@ export class AudioRecorder {
       });
       this.worklet = worklet;
 
-      // Create a gain node to boost the microphone volume
+      // Create a gain node for optimal microphone volume
       const gainNode = context.createGain();
-      gainNode.gain.value = 2.5; // Increase volume by 2.5x (adjust as needed: 1.5-3.0)
+      gainNode.gain.value = 2.0; // Moderate boost for clarity without distortion
       this.gainNode = gainNode;
 
       const source = context.createMediaStreamSource(stream);

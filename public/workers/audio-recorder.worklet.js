@@ -4,7 +4,7 @@ class AudioRecorderWorklet extends AudioWorkletProcessor {
     this.bufferSize = 4096;
     this.buffer = new Int16Array(this.bufferSize);
     this.writeIndex = 0;
-    this.gainMultiplier = 1.5; // Additional gain boost in worklet
+    this.gainMultiplier = 1.2; // Moderate gain for clarity without distortion
     this.port.onmessage = (event) => {
       if (event.data?.type === "flush") {
         this.flush();

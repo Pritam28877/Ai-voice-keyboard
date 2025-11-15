@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-const POLL_INTERVAL_MS = 1200;
+const POLL_INTERVAL_MS = 250; // Google Translate speed - 250ms for near-instant updates
 
 export function DictationWorkspace() {
   const {
@@ -377,8 +377,8 @@ export function DictationWorkspace() {
             <StatusBadge status={status} />
           </div>
           <CardDescription>
-            Speak naturally. We’ll stream audio to Whisper, apply your dictionary,
-            and mirror the transcript here in seconds.
+            Speak naturally for up to 15 minutes. Instant resume after pauses - no lag between words. 
+            Google Translate speed with smart pause detection.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-4">
@@ -466,8 +466,8 @@ export function DictationWorkspace() {
           <CardHeader>
             <CardTitle>Tips</CardTitle>
             <CardDescription>
-              Add uncommon spellings in the dictionary for perfect recall. You can
-              keep speaking — we merge slices with low latency.
+              Record for up to 15 minutes. Instant resume detection - when you start speaking after a pause, 
+              transcription resumes immediately (no lag). Google Translate speed with zero delay.
             </CardDescription>
           </CardHeader>
         </Card>

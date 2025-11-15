@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Mic, Pause, RefreshCcw, Square } from "lucide-react";
+import { Clipboard, ClipboardCheck, Loader2, Mic, Pause, RefreshCcw, Square } from "lucide-react";
 import { toast } from "sonner";
 
 import { AudioRecorder } from "@/lib/audio/recorder";
@@ -38,6 +38,24 @@ export function DictationWorkspace() {
   const chunkQueue = useRef<Promise<void>>(Promise.resolve());
   const pollAbortController = useRef<AbortController | null>(null);
   const isStoppingRef = useRef(false);
+  const [copied, setCopied] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleCopyTranscript = useCallback(async () => {
+    if (!transcript || transcript === "Your transcript will appear here.") {
+      toast.info("No transcript available to copy yet.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(transcript);
+      setCopied(true);
+      toast.success("Transcript copied to clipboard.");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error(error);
+      toast.error("Copy failed. Try again.");
+    }
+  }, [transcript]);
 
   const stopRecording = useCallback(
     async (skipFinalize = false) => {
@@ -359,11 +377,32 @@ export function DictationWorkspace() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-4">
-          <ScrollArea className="flex-1 rounded-lg border border-border/60 bg-background/60 p-4">
-            <p className="whitespace-pre-wrap text-base leading-relaxed">
-              {transcript || "Your transcript will appear here."}
-            </p>
-          </ScrollArea>
+          <div
+            className="relative"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <ScrollArea className="flex-1 rounded-lg border border-border/60 bg-background/60 p-4">
+              <p className="whitespace-pre-wrap text-base leading-relaxed">
+                {transcript || "Your transcript will appear here."}
+              </p>
+            </ScrollArea>
+            {isHovered && transcript && transcript !== "Your transcript will appear here." && (
+              <Button
+                size="icon"
+                variant="secondary"
+                className="absolute top-2 right-2 h-8 w-8 shadow-md z-10"
+                onClick={handleCopyTranscript}
+                title="Copy transcript"
+              >
+                {copied ? (
+                  <ClipboardCheck className="h-4 w-4 text-green-600" />
+                ) : (
+                  <Clipboard className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+          </div>
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
               Input level

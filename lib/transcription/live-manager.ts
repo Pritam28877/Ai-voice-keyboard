@@ -59,9 +59,27 @@ export async function startLiveTranscription({
     orderBy: { priority: "desc" },
   });
 
-  // Create custom vocabulary prompt for Whisper
-  const vocabularyTerms = dictionary.map(entry => entry.phrase).join(", ");
-  const whisperPrompt = vocabularyTerms || undefined;
+  // Create custom vocabulary prompt for Whisper (limit 224 chars, prioritize high-priority entries)
+  let whisperPrompt: string | undefined = undefined;
+  if (dictionary.length > 0) {
+    const MAX_PROMPT_LENGTH = 224;
+    const terms: string[] = [];
+    let currentLength = 0;
+    
+    for (const entry of dictionary) {
+      const term = entry.canonical || entry.phrase;
+      const termWithSeparator = terms.length === 0 ? term : `, ${term}`;
+      
+      if (currentLength + termWithSeparator.length <= MAX_PROMPT_LENGTH) {
+        terms.push(term);
+        currentLength += termWithSeparator.length;
+      } else {
+        break; // Stop adding once we hit the limit
+      }
+    }
+    
+    whisperPrompt = terms.join(", ");
+  }
 
   const transcription = await prisma.transcription.create({
     data: {
@@ -95,12 +113,15 @@ export async function startLiveTranscription({
     audioChunks: [],
     totalDurationMs: 0,
     language: language.split('-')[0], // Whisper uses language codes like 'en', 'es', etc.
-    prompt: whisperPrompt && whisperPrompt.length > 224 ? whisperPrompt.substring(0, 224) : whisperPrompt, // Whisper prompt limit
+    prompt: whisperPrompt,
   };
 
   liveSessions.set(transcription.id, ctx);
   console.log(`✨ Created new transcription session: ${transcription.id}`);
   console.log(`📊 Active sessions: ${liveSessions.size}`);
+  if (whisperPrompt) {
+    console.log(`📖 Dictionary prompt (${whisperPrompt.length}/224 chars): "${whisperPrompt}"`);
+  };
 
   return {
     transcriptionId: transcription.id,

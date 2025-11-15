@@ -53,6 +53,15 @@ export async function startLiveTranscription({
     where: { userId },
   });
 
+  // Generate sequential title if none provided
+  let sessionTitle = title;
+  if (!sessionTitle) {
+    const count = await prisma.transcription.count({
+      where: { userId },
+    });
+    sessionTitle = `Session #${count + 1}`;
+  }
+
   const language = settings?.defaultLanguage ?? "en-US";
   const dictionary = await prisma.dictionaryEntry.findMany({
     where: { userId },
@@ -84,7 +93,7 @@ export async function startLiveTranscription({
   const transcription = await prisma.transcription.create({
     data: {
       userId,
-      title,
+      title: sessionTitle,
       status: STATUS_STREAMING,
       language,
       content: "",

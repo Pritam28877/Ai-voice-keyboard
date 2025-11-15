@@ -42,6 +42,7 @@ export function DictationWorkspace() {
   const isStoppingRef = useRef(false);
   const [copied, setCopied] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [sessionTitle, setSessionTitle] = useState("");
 
   const handleCopyTranscript = useCallback(async () => {
     if (!transcript || transcript === "Your transcript will appear here.") {
@@ -126,7 +127,9 @@ export function DictationWorkspace() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          title: sessionTitle.trim() || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -428,11 +431,27 @@ export function DictationWorkspace() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="session-title">Session Title (Optional)</Label>
+              <Input
+                id="session-title"
+                type="text"
+                placeholder="e.g., Meeting Notes, Ideas..."
+                value={sessionTitle}
+                onChange={(e) => setSessionTitle(e.target.value)}
+                disabled={status !== "idle"}
+                maxLength={100}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty for auto-numbered title (Session #1, #2, etc.)
+              </p>
+            </div>
             {actionButton}
             <Button
               variant="ghost"
               onClick={() => {
                 setTranscript("");
+                setSessionTitle("");
                 toast.info("Transcript cleared for the next run.");
               }}
               className="w-full"
